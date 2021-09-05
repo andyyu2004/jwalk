@@ -32,14 +32,8 @@ pub struct Error {
 
 #[derive(Debug)]
 enum ErrorInner {
-    Io {
-        path: Option<PathBuf>,
-        err: io::Error,
-    },
-    Loop {
-        ancestor: PathBuf,
-        child: PathBuf,
-    },
+    Io { path: Option<PathBuf>, err: io::Error },
+    Loop { ancestor: PathBuf, child: PathBuf },
 }
 
 impl Error {
@@ -52,10 +46,7 @@ impl Error {
     pub fn path(&self) -> Option<&Path> {
         match self.inner {
             ErrorInner::Io { path: None, .. } => None,
-            ErrorInner::Io {
-                path: Some(ref path),
-                ..
-            } => Some(path),
+            ErrorInner::Io { path: Some(ref path), .. } => Some(path),
             ErrorInner::Loop { ref child, .. } => Some(child),
         }
     }
@@ -169,30 +160,18 @@ impl Error {
     }
 
     pub(crate) fn from_path(depth: usize, pb: PathBuf, err: io::Error) -> Self {
-        Error {
-            depth,
-            inner: ErrorInner::Io {
-                path: Some(pb),
-                err,
-            },
-        }
+        Error { depth, inner: ErrorInner::Io { path: Some(pb), err } }
     }
 
     pub(crate) fn from_entry<C: ClientState>(dent: &DirEntry<C>, err: io::Error) -> Self {
         Error {
             depth: dent.depth(),
-            inner: ErrorInner::Io {
-                path: Some(dent.path()),
-                err,
-            },
+            inner: ErrorInner::Io { path: Some(dent.path().to_owned()), err },
         }
     }
 
     pub(crate) fn from_io(depth: usize, err: io::Error) -> Self {
-        Error {
-            depth,
-            inner: ErrorInner::Io { path: None, err },
-        }
+        Error { depth, inner: ErrorInner::Io { path: None, err } }
     }
 
     pub(crate) fn from_loop(depth: usize, ancestor: &Path, child: &Path) -> Self {
@@ -230,18 +209,10 @@ impl error::Error for Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.inner {
-            ErrorInner::Io {
-                path: None,
-                ref err,
-            } => err.fmt(f),
-            ErrorInner::Io {
-                path: Some(ref path),
-                ref err,
-            } => write!(f, "IO error for operation on {}: {}", path.display(), err),
-            ErrorInner::Loop {
-                ref ancestor,
-                ref child,
-            } => write!(
+            ErrorInner::Io { path: None, ref err } => err.fmt(f),
+            ErrorInner::Io { path: Some(ref path), ref err } =>
+                write!(f, "IO error for operation on {}: {}", path.display(), err),
+            ErrorInner::Loop { ref ancestor, ref child } => write!(
                 f,
                 "File system loop found: \
                  {} points to an ancestor {}",
@@ -266,14 +237,8 @@ impl From<Error> for io::Error {
     /// [`into_io_error`]: struct.WalkDir.html#method.into_io_error
     fn from(walk_err: Error) -> io::Error {
         let kind = match walk_err {
-            Error {
-                inner: ErrorInner::Io { ref err, .. },
-                ..
-            } => err.kind(),
-            Error {
-                inner: ErrorInner::Loop { .. },
-                ..
-            } => io::ErrorKind::Other,
+            Error { inner: ErrorInner::Io { ref err, .. }, .. } => err.kind(),
+            Error { inner: ErrorInner::Loop { .. }, .. } => io::ErrorKind::Other,
         };
         io::Error::new(kind, walk_err)
     }

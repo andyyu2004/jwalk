@@ -26,6 +26,7 @@ pub struct DirEntry<C: ClientState> {
     pub client_state: C::DirEntryState,
     /// Path used by this entry's parent to read this entry.
     pub parent_path: Arc<Path>,
+    pub path: PathBuf,
     /// Path that will be used to read child entries. This is automatically set
     /// for directories. The
     /// [`process_read_dir`](struct.WalkDirGeneric.html#method.process_read_dir) callback
@@ -52,13 +53,11 @@ impl<C: ClientState> DirEntry<C> {
             .file_type()
             .map_err(|err| Error::from_path(depth, fs_dir_entry.path(), err))?;
         let file_name = fs_dir_entry.file_name();
-        let read_children_path: Option<Arc<Path>> = if file_type.is_dir() {
-            Some(Arc::from(parent_path.join(&file_name)))
-        } else {
-            None
-        };
+        let read_children_path: Option<Arc<Path>> =
+            if file_type.is_dir() { Some(Arc::from(parent_path.join(&file_name))) } else { None };
 
         Ok(DirEntry {
+            path: parent_path.join(&file_name),
             depth,
             file_name,
             file_type,
@@ -87,16 +86,14 @@ impl<C: ClientState> DirEntry<C> {
 
         let root_name = path.file_name().unwrap_or_else(|| path.as_os_str());
 
-        let read_children_path: Option<Arc<Path>> = if metadata.file_type().is_dir() {
-            Some(Arc::from(path))
-        } else {
-            None
-        };
+        let read_children_path: Option<Arc<Path>> =
+            if metadata.file_type().is_dir() { Some(Arc::from(path)) } else { None };
 
         Ok(DirEntry {
             depth,
             file_name: root_name.to_owned(),
             file_type: metadata.file_type(),
+            path: path.to_path_buf(),
             parent_path: Arc::from(path.parent().map(Path::to_path_buf).unwrap_or_default()),
             read_children_path,
             read_children_error: None,
@@ -136,10 +133,8 @@ impl<C: ClientState> DirEntry<C> {
     }
 
     /// Path to the file/directory represented by this entry.
-    ///
-    /// The path is created by joining `parent_path` with `file_name`.
-    pub fn path(&self) -> PathBuf {
-        self.parent_path.join(&self.file_name)
+    pub fn path(&self) -> &Path {
+        &self.path
     }
 
     /// Returns `true` if and only if this entry was created from a symbolic
@@ -217,11 +212,7 @@ impl<C: ClientState> DirEntry<C> {
             let target = std::fs::read_link(&path).unwrap();
             for ancestor in self.follow_link_ancestors.iter().rev() {
                 if target.as_path() == ancestor.as_ref() {
-                    return Err(Error::from_loop(
-                        self.depth,
-                        ancestor.as_ref(),
-                        path.as_ref(),
-                    ));
+                    return Err(Error::from_loop(self.depth, ancestor.as_ref(), path.as_ref()));
                 }
             }
         }

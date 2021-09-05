@@ -125,11 +125,7 @@ fn one_dir_one_file() {
     let r = dir.run_recursive(wd);
     r.assert_no_errors();
 
-    let expected = vec![
-        dir.path().to_path_buf(),
-        dir.join("foo"),
-        dir.join("foo").join("a"),
-    ];
+    let expected = vec![dir.path().to_path_buf(), dir.join("foo"), dir.join("foo").join("a")];
     assert_eq!(expected, r.paths());
 }
 
@@ -304,9 +300,7 @@ fn sym_root_file_follow() {
     dir.touch("a");
     dir.symlink_file("a", "a-link");
 
-    let wd = WalkDir::new(dir.join("a-link"))
-        .sort(true)
-        .follow_links(true);
+    let wd = WalkDir::new(dir.join("a-link")).sort(true).follow_links(true);
     let r = dir.run_recursive(wd);
     r.assert_no_errors();
 
@@ -373,9 +367,7 @@ fn sym_root_dir_follow() {
     dir.symlink_dir("a", "a-link");
     dir.touch("a/zzz");
 
-    let wd = WalkDir::new(dir.join("a-link"))
-        .sort(true)
-        .follow_links(true);
+    let wd = WalkDir::new(dir.join("a-link")).sort(true).follow_links(true);
     let r = dir.run_recursive(wd);
     r.assert_no_errors();
 
@@ -723,11 +715,7 @@ fn max_depth_2() {
     let r = dir.run_recursive(wd);
     r.assert_no_errors();
 
-    let expected = vec![
-        dir.path().to_path_buf(),
-        dir.join("a"),
-        dir.join("a").join("b"),
-    ];
+    let expected = vec![dir.path().to_path_buf(), dir.join("a"), dir.join("a").join("b")];
     assert_eq!(expected, r.paths());
 }
 
@@ -754,10 +742,7 @@ fn min_max_depth_diff_0() {
     let dir = Dir::tmp();
     dir.mkdirp("a/b/c");
 
-    let wd = WalkDir::new(dir.path())
-        .min_depth(2)
-        .max_depth(2)
-        .sort(true);
+    let wd = WalkDir::new(dir.path()).min_depth(2).max_depth(2).sort(true);
     let r = dir.run_recursive(wd);
     r.assert_no_errors();
 
@@ -770,10 +755,7 @@ fn min_max_depth_diff_1() {
     let dir = Dir::tmp();
     dir.mkdirp("a/b/c");
 
-    let wd = WalkDir::new(dir.path())
-        .min_depth(1)
-        .max_depth(2)
-        .sort(true);
+    let wd = WalkDir::new(dir.path()).min_depth(1).max_depth(2).sort(true);
     let r = dir.run_recursive(wd);
     r.assert_no_errors();
 
@@ -964,11 +946,7 @@ fn local_paths(walk_dir: WalkDir) -> Vec<String> {
 fn walk_serial() {
     let (test_dir, _temp_dir) = test_dir();
 
-    let paths = local_paths(
-        WalkDir::new(test_dir)
-            .parallelism(Parallelism::Serial)
-            .sort(true),
-    );
+    let paths = local_paths(WalkDir::new(test_dir).parallelism(Parallelism::Serial).sort(true));
     assert!(
         paths
             == vec![
@@ -987,11 +965,8 @@ fn walk_serial() {
 #[test]
 fn sort_by_name_rayon_custom_2_threads() {
     let (test_dir, _temp_dir) = test_dir();
-    let paths = local_paths(
-        WalkDir::new(test_dir)
-            .parallelism(Parallelism::RayonNewPool(2))
-            .sort(true),
-    );
+    let paths =
+        local_paths(WalkDir::new(test_dir).parallelism(Parallelism::RayonNewPool(2)).sort(true));
     assert!(
         paths
             == vec![
@@ -1029,19 +1004,12 @@ fn walk_rayon_global() {
 #[test]
 fn walk_rayon_no_lockup() {
     // Without jwalk_par_bridge this locks
-    let pool = std::sync::Arc::new(
-        rayon::ThreadPoolBuilder::new()
-            .num_threads(1)
-            .build()
-            .unwrap(),
-    );
+    let pool = std::sync::Arc::new(rayon::ThreadPoolBuilder::new().num_threads(1).build().unwrap());
     let _: Vec<_> = WalkDir::new(PathBuf::from(env!("CARGO_MANIFEST_DIR")))
         .parallelism(Parallelism::RayonExistingPool(pool))
         .process_read_dir(|_, _, _, dir_entry_results| {
             for dir_entry_result in dir_entry_results {
-                let _ = dir_entry_result
-                    .as_ref()
-                    .map(|dir_entry| dir_entry.metadata());
+                let _ = dir_entry_result.as_ref().map(|dir_entry| dir_entry.metadata());
             }
         })
         .sort(true)
@@ -1107,9 +1075,7 @@ fn error_when_path_does_not_exist() {
 #[test]
 fn error_when_path_removed_durring_iteration() {
     let (test_dir, _temp_dir) = test_dir();
-    let walk_dir = WalkDir::new(&test_dir)
-        .parallelism(Parallelism::Serial)
-        .sort(true);
+    let walk_dir = WalkDir::new(&test_dir).parallelism(Parallelism::Serial).sort(true);
     let mut iter = walk_dir.into_iter();
 
     // Read root. read_dir for root is also called since single thread mode.
@@ -1141,7 +1107,7 @@ fn walk_root() {
         .max_depth(1)
         .sort(true)
         .into_iter()
-        .filter_map(|each| Some(each.ok()?.path()))
+        .filter_map(|each| Some(each.ok()?.path().to_owned()))
         .collect();
     assert!(paths.first().unwrap().to_str().unwrap() == "/");
 }
@@ -1243,15 +1209,7 @@ fn filter_group_children_with_process_read_dir() {
             }),
     );
     assert!(
-        paths
-            == vec![
-                " (0)",
-                "a.txt (1)",
-                "b.txt (1)",
-                "c.txt (1)",
-                "group 1 (1)",
-                "group 2 (1)",
-            ]
+        paths == vec![" (0)", "a.txt (1)", "b.txt (1)", "c.txt (1)", "group 1 (1)", "group 2 (1)",]
     );
 }
 
@@ -1261,8 +1219,8 @@ fn test_read_linux() {
     let linux_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("benches/assets/linux_checkout");
     if linux_dir.exists() {
         for each in WalkDir::new(linux_dir) {
-            let path = each.unwrap().path();
-            assert!(path.exists(), path);
+            let path = each.unwrap().path().to_owned();
+            assert!(path.exists(), "{}", path.display());
         }
     }
 }

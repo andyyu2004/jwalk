@@ -33,11 +33,7 @@ impl<C: ClientState> RecursiveResults<C> {
 
     /// Assert that no errors have occurred.
     pub fn assert_no_errors(&self) {
-        assert!(
-            self.errs.is_empty(),
-            "expected to find no errors, but found: {:?}",
-            self.errs
-        );
+        assert!(self.errs.is_empty(), "expected to find no errors, but found: {:?}", self.errs);
     }
 
     /// Return all the successfully retrieved directory entries in the order
@@ -50,7 +46,7 @@ impl<C: ClientState> RecursiveResults<C> {
     ///
     /// This does not include paths that correspond to an error.
     pub fn paths(&self) -> Vec<PathBuf> {
-        self.ents.iter().map(|d| d.path()).collect()
+        self.ents.iter().map(|d| d.path().to_owned()).collect()
     }
 
     /*
@@ -104,10 +100,7 @@ impl Dir {
         C: ClientState,
         I: IntoIterator<Item = result::Result<DirEntry<C>, Error>>,
     {
-        let mut results = RecursiveResults {
-            ents: vec![],
-            errs: vec![],
-        };
+        let mut results = RecursiveResults { ents: vec![], errs: vec![] };
         for result in it {
             match result {
                 Ok(ent) => results.ents.push(ent),

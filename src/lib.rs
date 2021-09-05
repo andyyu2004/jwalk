@@ -342,7 +342,7 @@ fn process_dir_entry_result<C: ClientState>(
                 // should report itself as a symlink. When it's enabled, it
                 // should always report itself as the target.
                 let metadata = fs::metadata(dir_entry.path())
-                    .map_err(|err| Error::from_path(0, dir_entry.path(), err))?;
+                    .map_err(|err| Error::from_path(0, dir_entry.path().to_owned(), err))?;
                 if metadata.file_type().is_dir() {
                     dir_entry.read_children_path = Some(Arc::from(dir_entry.path()));
                 }
@@ -355,8 +355,8 @@ fn process_dir_entry_result<C: ClientState>(
 }
 
 impl<C: ClientState> IntoIterator for WalkDirGeneric<C> {
-    type Item = Result<DirEntry<C>>;
     type IntoIter = DirEntryIter<C>;
+    type Item = Result<DirEntry<C>>;
 
     fn into_iter(self) -> DirEntryIter<C> {
         let sort = self.options.sort;
@@ -374,10 +374,8 @@ impl<C: ClientState> IntoIterator for WalkDirGeneric<C> {
         };
 
         let root_entry = DirEntry::from_path(0, &self.root, false, follow_link_ancestors);
-        let root_parent_path = root_entry
-            .as_ref()
-            .map(|root| root.parent_path().to_owned())
-            .unwrap_or_default();
+        let root_parent_path =
+            root_entry.as_ref().map(|root| root.parent_path().to_owned()).unwrap_or_default();
         let mut root_entry_results = vec![process_dir_entry_result(root_entry, follow_links)];
         if let Some(process_read_dir) = process_read_dir.as_ref() {
             process_read_dir(
@@ -394,12 +392,8 @@ impl<C: ClientState> IntoIterator for WalkDirGeneric<C> {
             min_depth,
             root_read_dir_state.clone(),
             Arc::new(move |read_dir_spec| {
-                let ReadDirSpec {
-                    path,
-                    depth,
-                    mut client_read_state,
-                    mut follow_link_ancestors,
-                } = read_dir_spec;
+                let ReadDirSpec { path, depth, mut client_read_state, mut follow_link_ancestors } =
+                    read_dir_spec;
 
                 let read_dir_depth = depth;
                 let read_dir_contents_depth = depth + 1;
@@ -422,9 +416,8 @@ impl<C: ClientState> IntoIterator for WalkDirGeneric<C> {
                     .filter_map(|dir_entry_result| {
                         let fs_dir_entry = match dir_entry_result {
                             Ok(fs_dir_entry) => fs_dir_entry,
-                            Err(err) => {
-                                return Some(Err(Error::from_io(read_dir_contents_depth, err)))
-                            }
+                            Err(err) =>
+                                return Some(Err(Error::from_io(read_dir_contents_depth, err))),
                         };
 
                         let dir_entry = match DirEntry::from_entry(
@@ -509,10 +502,7 @@ impl Parallelism {
 }
 
 fn is_hidden(file_name: &OsStr) -> bool {
-    file_name
-        .to_str()
-        .map(|s| s.starts_with('.'))
-        .unwrap_or(false)
+    file_name.to_str().map(|s| s.starts_with('.')).unwrap_or(false)
 }
 
 impl<B, E> ClientState for (B, E)
@@ -520,6 +510,6 @@ where
     B: Clone + Send + Default + Debug + 'static,
     E: Send + Default + Debug + 'static,
 {
-    type ReadDirState = B;
     type DirEntryState = E;
+    type ReadDirState = B;
 }
